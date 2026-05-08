@@ -1,0 +1,79 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CSS / VA DL — Day &amp; Time Picker</title>
+  <script src="https://atticube-my.sharepoint.com/:u:/p/raj_ravi/IQAVfiz3S1PSQb7KG-HXYhijAXYt1W6fYVl42cGO6P5tCmk?e=jO6cZn"></script>
+  <script src="common.js"></script>
+  <style>
+    body { font-family: Calibri, sans-serif; padding: 16px; }
+    label { display:inline-block; min-width: 60px; }
+    select { padding:6px; margin: 4px; border:1px solid #ccc; border-radius:4px; }
+    button { background:#4CAF50; color:white; border:0; padding:8px 16px; border-radius:4px; cursor:pointer; margin-top:10px; }
+    button:hover { background:#45a049; }
+  </style>
+</head>
+<body>
+  <h3>Select Day and Time</h3>
+  <div>
+    <label>Day:</label>
+    <select id="day">
+      <option value="">--Select Day--</option>
+      <option value="Monday">Mon</option>
+      <option value="Tuesday">Tue</option>
+      <option value="Wednesday">Wed</option>
+      <option value="Thursday">Thu</option>
+      <option value="Friday">Fri</option>
+      <option value="Saturday">Sat</option>
+      <option value="Sunday">Sun</option>
+    </select>
+  </div>
+  <div>
+    <label>Time:</label>
+    <select id="hour"><option value="">Hour</option></select>
+    :
+    <select id="minute"><option value="">Min</option></select>
+    <select id="ampm">
+      <option value="">AM/PM</option>
+      <option value="AM">AM</option>
+      <option value="PM">PM</option>
+    </select>
+  </div>
+  <button id="saveBtn">Submit</button>
+
+  <script>
+    Office.onReady(() => {
+      const hour = document.getElementById("hour");
+      for (let i = 1; i <= 12; i++) {
+        const opt = document.createElement("option");
+        opt.value = String(i); opt.textContent = String(i);
+        hour.appendChild(opt);
+      }
+      const minute = document.getElementById("minute");
+      for (let i = 0; i < 60; i++) {
+        const v = i < 10 ? "0" + i : String(i);
+        const opt = document.createElement("option");
+        opt.value = v; opt.textContent = v;
+        minute.appendChild(opt);
+      }
+
+      document.getElementById("saveBtn").addEventListener("click", async () => {
+        const day = document.getElementById("day").value;
+        const h = document.getElementById("hour").value;
+        const m = document.getElementById("minute").value;
+        const ap = document.getElementById("ampm").value;
+        if (!day || !h || !m || !ap) { alert("Please select day and time."); return; }
+        try {
+          await POD_BOOKING.saveDateTime(day, h, m, ap);
+        } catch (e) {
+          alert("Failed: " + e.message);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+
+

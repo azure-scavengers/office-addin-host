@@ -1,0 +1,39 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Time Picker — In Time</title>
+  <script src="https://atticube-my.sharepoint.com/:u:/p/raj_ravi/IQAVfiz3S1PSQb7KG-HXYhijAXYt1W6fYVl42cGO6P5tCmk?e=jO6cZn"></script>
+  <script src="common.js"></script>
+  <style>
+    body { font-family: Calibri, sans-serif; padding: 16px; }
+    button { background:#4CAF50; color:white; border:0; padding:8px 16px; border-radius:4px; cursor:pointer; }
+    button:hover { background:#45a049; }
+  </style>
+</head>
+<body>
+  <h3>Select Time</h3>
+  <input type="time" id="time" />
+  <button id="addBtn">Add Time</button>
+  <p id="result" style="margin-top:12px; color:#333;"></p>
+
+  <script>
+    Office.onReady(() => {
+      document.getElementById("addBtn").addEventListener("click", async () => {
+        const value = document.getElementById("time").value;
+        if (!value) return;
+        try {
+          const final = await POD_BOOKING.appendTime(value);
+          document.getElementById("result").textContent = "Cell now: " + final;
+        } catch (e) {
+          alert("Failed: " + e.message);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+
+
