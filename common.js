@@ -1,13 +1,3 @@
-/* common.js — shared Office.js helpers used by all task-pane HTML pages.
- *
- * Replaces the Apps Script `google.script.run.<fn>()` bridge with direct
- * Excel reads/writes via the Office.js / Excel JavaScript API.
- *
- * The original implementation referenced an external Google Sheet by ID
- * for master data. In Excel we expect a sheet named `Database` inside the
- * same workbook (see Excel_Migration/README.md for the consolidation step).
- */
-
 const POD_BOOKING = (function () {
   const DB_SHEET_NAME = "Database";
 
