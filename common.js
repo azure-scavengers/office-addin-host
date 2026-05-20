@@ -1,340 +1,653 @@
+/* common.js — shared Office.js helpers used by all task-pane HTML pages.
+ *
+ * Replaces the Apps Script `google.script.run.<fn>()` bridge with direct
+ * Excel reads/writes via the Office.js / Excel JavaScript API.
+ *
+ * The original implementation referenced an external Google Sheet by ID
+ * for master data. In Excel we expect a sheet named `Database` inside the
+ * same workbook (see Excel_Migration/README.md for the consolidation step).
+ */
+
 const POD_BOOKING = (function () {
-  const DB_SHEET_NAME = "Database";
+    const DB_SHEET_NAME = "Database";
+    const DB_TABLE_NAME = "tbl_Database"; // exists only in the master S4U CLIENT DB workbook
 
-  const DEFAULT_COLS = {
-    user: 0,
-    client: 1,
-    clientId: 2,
-    pod: 3,
-    sensitivity: 4,
-  };
-
-  function normalizeText(value) {
-    return String(value ?? "").trim().toLowerCase();
-  }
-
-  function normalizePod(value) {
-    return normalizeText(value)
-      .replace(/^pod[\s\-_]*/i, "")
-      .replace(/[\s\-_]/g, "");
-  }
-
-  function detectColumns(rows) {
-    if (!rows || !rows.length) {
-      return { cols: DEFAULT_COLS, startRow: 0 };
-    }
-
-    const header = rows[0].map((v) => normalizeText(v));
-
-    const hasHeader = header.some((h) =>
-      [
-        "user",
-        "username",
-        "user name",
-        "client",
-        "client name",
-        "pod",
-        "sensitivity",
-      ].includes(h)
-    );
-
-    const find = (candidates, fallback) => {
-      const idx = header.findIndex((h) => candidates.includes(h));
-      return idx >= 0 ? idx : fallback;
+    const DEFAULT_COLS = {
+        user: 0,
+        client: 1,
+        clientId: 2,
+        pod: 3,
+        sensitivity: 4,
     };
 
-    const cols = hasHeader
-      ? {
-          user: find(["user", "username", "user name"], DEFAULT_COLS.user),
-          client: find(
-            ["client", "clientname", "client name"],
-            DEFAULT_COLS.client
-          ),
-          clientId: find(
-            ["client id", "clientid", "client_id", "client code", "clientcode"],
-            DEFAULT_COLS.clientId
-          ),
-          pod: find(["pod"], DEFAULT_COLS.pod),
-          sensitivity: find(["sensitivity"], DEFAULT_COLS.sensitivity),
+    function normalizeText(value) {
+        return String(value ?? "").trim().toLowerCase();
+    }
+
+    function normalizePod(value) {
+        return normalizeText(value)
+            .replace(/^pod[\s\-_]*/i, "")
+            .replace(/[\s\-_]/g, "");
+    }
+
+    function detectColumns(rows) {
+        if (!rows || !rows.length) {
+            return {
+                cols: DEFAULT_COLS,
+                startRow: 0,
+            };
         }
-      : DEFAULT_COLS;
 
-    return { cols, startRow: hasHeader ? 1 : 0 };
-  }
+        const header = rows[0].map((v) => normalizeText(v));
 
-  /** Read the Database sheet into an array-of-rows. Returns [] if missing. */
-  async function loadDatabase(context) {
-    const wb = context.workbook;
-    const sheet = wb.worksheets.getItemOrNullObject(DB_SHEET_NAME);
+        const hasHeader = header.some((h) =>
+            [
+                "user",
+                "username",
+                "user name",
+                "client",
+                "client name",
+                "pod",
+                "sensitivity",
+            ].includes(h)
+        );
 
-    sheet.load("name");
-    await context.sync();
+        const find = (candidates, fallback) => {
+            const idx = header.findIndex((h) => candidates.includes(h));
+            return idx >= 0 ? idx : fallback;
+        };
 
-    if (sheet.isNullObject) return [];
+        const cols = hasHeader
+            ? {
+                  user: find(
+                      ["user", "username", "user name"],
+                      DEFAULT_COLS.user
+                  ),
+                  client: find(
+                      ["client", "clientname", "client name"],
+                      DEFAULT_COLS.client
+                  ),
+                  clientId: find(
+                      [
+                          "client id",
+                          "clientid",
+                          "client_id",
+                          "client code",
+                          "clientcode",
+                      ],
+                      DEFAULT_COLS.clientId
+                  ),
+                  pod: find(["pod"], DEFAULT_COLS.pod),
+                  sensitivity: find(
+                      ["sensitivity"],
+                      DEFAULT_COLS.sensitivity
+                  ),
+              }
+            : DEFAULT_COLS;
 
-    const used = sheet.getUsedRange();
-    used.load("values");
+        return {
+            cols,
+            startRow: hasHeader ? 1 : 0,
+        };
+    }
 
-    await context.sync();
-    return used.values || [];
-  }
+    /**
+     * Detect the workbook role:
+     *   - "master" if the workbook contains an Excel Table named tbl_Database
+     *                (this is the S4U CLIENT DB workbook).
+     *   - "pod" if it has a Database sheet but no tbl_Database table.
+     *   - "unknown" otherwise.
+     */
+    async function getWorkbookContext() {
+        return Excel.run(async (ctx) => {
+            const wb = ctx.workbook;
 
-  /** Get dropdown users filtered by POD */
-  async function getDropdownData(podFilter) {
-    return Excel.run(async (ctx) => {
-      const rows = await loadDatabase(ctx);
-      const { cols, startRow } = detectColumns(rows);
+            const table = wb.tables.getItemOrNullObject(DB_TABLE_NAME);
+            const sheet = wb.worksheets.getItemOrNullObject(DB_SHEET_NAME);
 
-      const users = new Set();
-      const wantedPod = normalizePod(podFilter);
+            table.load("name");
+            sheet.load("name");
 
-      for (let i = startRow; i < rows.length; i++) {
-        const u = String(rows[i][cols.user] || "");
-        const p = String(rows[i][cols.pod] || "");
+            await ctx.sync();
 
-        const podMatch = !wantedPod || normalizePod(p) === wantedPod;
-        if (u && podMatch) users.add(u);
-      }
+            const hasTable = !table.isNullObject;
+            const hasSheet = !sheet.isNullObject;
 
-      // fallback if POD mismatch
-      if (!users.size && wantedPod) {
-        for (let i = startRow; i < rows.length; i++) {
-          const u = String(rows[i][cols.user] || "");
-          if (u) users.add(u);
+            let role = "unknown";
+
+            if (hasTable) {
+                role = "master";
+            } else if (hasSheet) {
+                role = "pod";
+            }
+
+            return {
+                role,
+                hasTable,
+                hasSheet,
+            };
+        });
+    }
+
+    /** Read the Database sheet into an array-of-rows. Returns [] if missing. */
+    async function loadDatabase(context) {
+        const wb = context.workbook;
+
+        const sheet = wb.worksheets.getItemOrNullObject(DB_SHEET_NAME);
+
+        sheet.load("name");
+
+        await context.sync();
+
+        if (sheet.isNullObject) {
+            return [];
         }
-      }
 
-      return { users: Array.from(users).sort() };
-    });
-  }
+        const used = sheet.getUsedRange();
 
-  async function getClientsBasedOnUser(user) {
-    return Excel.run(async (ctx) => {
-      const rows = await loadDatabase(ctx);
-      const { cols, startRow } = detectColumns(rows);
+        used.load("values");
 
-      const clients = [];
+        await context.sync();
 
-      for (let i = startRow; i < rows.length; i++) {
-        if (String(rows[i][cols.user] || "") === user) {
-          clients.push(String(rows[i][cols.client] || ""));
-        }
-      }
+        return used.values || [];
+    }
 
-      return Array.from(new Set(clients));
-    });
-  }
+    /**
+     * Returns the unique users for a given POD filter (mirrors the original
+     * RoW filter). Pass empty string to disable filtering.
+     *
+     * Database columns:
+     * B=User(1), C=Client(2), D=ClientId(3), E=POD(4), F=Sensitivity(5).
+     */
+    async function getDropdownData(podFilter) {
+        return Excel.run(async (ctx) => {
+            const rows = await loadDatabase(ctx);
 
-  async function getClientDetails(client) {
-    return Excel.run(async (ctx) => {
-      const rows = await loadDatabase(ctx);
-      const { cols, startRow } = detectColumns(rows);
+            const { cols, startRow } = detectColumns(rows);
 
-      for (let i = startRow; i < rows.length; i++) {
-        if (String(rows[i][cols.client] || "") === client) {
-          return {
-            clientId: String(rows[i][cols.clientId] || ""),
-            pod: String(rows[i][cols.pod] || ""),
-          };
-        }
-      }
+            const users = new Set();
 
-      return { clientId: "", pod: "" };
-    });
-  }
+            const wantedPod = normalizePod(podFilter);
 
-  async function getSensitivity(user) {
-    return Excel.run(async (ctx) => {
-      const rows = await loadDatabase(ctx);
-      const { cols, startRow } = detectColumns(rows);
+            for (let i = startRow; i < rows.length; i++) {
+                const u = String(rows[i][cols.user] || "");
+                const p = String(rows[i][cols.pod] || "");
 
-      for (let i = startRow; i < rows.length; i++) {
-        if (String(rows[i][cols.user] || "") === user) {
-          return String(rows[i][cols.sensitivity] || "");
-        }
-      }
+                const podMatch =
+                    !wantedPod || normalizePod(p) === wantedPod;
 
-      return "";
-    });
-  }
+                if (u && podMatch) {
+                    users.add(u);
+                }
+            }
 
-  async function getClientListWithPOD() {
-    return Excel.run(async (ctx) => {
-      const rows = await loadDatabase(ctx);
-      const { cols, startRow } = detectColumns(rows);
+            // Fallback: if POD parsing/filtering mismatches workbook naming,
+            // return all users.
+            if (!users.size && wantedPod) {
+                for (let i = startRow; i < rows.length; i++) {
+                    const u = String(rows[i][cols.user] || "");
 
-      const seen = new Set();
-      const out = [];
+                    if (u) {
+                        users.add(u);
+                    }
+                }
+            }
 
-      for (let i = startRow; i < rows.length; i++) {
-        const c = String(rows[i][cols.client] || "");
-        const p = String(rows[i][cols.pod] || "POD X");
+            return {
+                users: Array.from(users).sort(),
+            };
+        });
+    }
 
-        if (c && !seen.has(c)) {
-          seen.add(c);
-          out.push({ client: c, pod: p });
-        }
-      }
+    async function getClientsBasedOnUser(user) {
+        return Excel.run(async (ctx) => {
+            const rows = await loadDatabase(ctx);
 
-      return out;
-    });
-  }
+            const { cols, startRow } = detectColumns(rows);
 
-  /** Submit form to Excel */
-  async function submitForm(form) {
-    return Excel.run(async (ctx) => {
-      const sheet = ctx.workbook.worksheets.getActiveWorksheet();
+            const target = normalizeText(user);
 
-      const used = sheet.getUsedRangeOrNullObject();
-      used.load("rowCount");
-      await ctx.sync();
+            const clients = [];
 
-      const nextRowIdx = used.isNullObject ? 0 : used.rowCount;
+            for (let i = startRow; i < rows.length; i++) {
+                if (normalizeText(rows[i][cols.user]) === target) {
+                    const c = String(
+                        rows[i][cols.client] ?? ""
+                    ).trim();
 
-      const range = sheet.getRangeByIndexes(nextRowIdx, 0, 1, 17);
+                    if (c) {
+                        clients.push(c);
+                    }
+                }
+            }
 
-      const values = [[
-        false,
-        form.date,
-        form.softwareId,
-        form.inTime,
-        form.user,
-        form.client,
-        form.clientCode,
-        form.pod,
-        form.sensitivity,
-        form.projectCode,
-        form.jobDescription,
-        form.newValue,
-        form.edits,
-        form.rework,
-        "",
-        "TBC",
-        "TBC",
-      ]];
+            return Array.from(new Set(clients)).sort();
+        });
+    }
 
-      range.values = values;
+    async function getClientDetails(client) {
+        return Excel.run(async (ctx) => {
+            const rows = await loadDatabase(ctx);
 
-      if (form.sensitivity === "High") {
-        const userCell = sheet.getRangeByIndexes(nextRowIdx, 4, 1, 1);
-        userCell.format.font.color = "#FF0000";
-      }
+            const { cols, startRow } = detectColumns(rows);
 
-      await ctx.sync();
+            const target = normalizeText(client);
 
-      return { ok: true, row: nextRowIdx + 1 };
-    });
-  }
+            for (let i = startRow; i < rows.length; i++) {
+                if (normalizeText(rows[i][cols.client]) === target) {
+                    return {
+                        clientId: String(
+                            rows[i][cols.clientId] ?? ""
+                        ).trim(),
 
-  const QUEUE_SHEET_NAME = "_NewClientQueue";
+                        pod: String(
+                            rows[i][cols.pod] ?? ""
+                        ).trim(),
+                    };
+                }
+            }
 
-  const QUEUE_HEADERS = [
-    "QueuedAt",
-    "ClientName",
-    "UserName",
-    "POD",
-    "Status",
-    "ProcessedAt",
-  ];
+            return {
+                clientId: "",
+                pod: "",
+            };
+        });
+    }
 
-  async function saveNewClient(payload) {
-    return Excel.run(async (ctx) => {
-      const wb = ctx.workbook;
+    async function getSensitivity(user) {
+        return Excel.run(async (ctx) => {
+            const rows = await loadDatabase(ctx);
 
-      let sheet = wb.worksheets.getItemOrNullObject(QUEUE_SHEET_NAME);
-      sheet.load("name");
+            const { cols, startRow } = detectColumns(rows);
 
-      await ctx.sync();
+            const target = normalizeText(user);
 
-      if (sheet.isNullObject) {
-        sheet = wb.worksheets.add(QUEUE_SHEET_NAME);
+            for (let i = startRow; i < rows.length; i++) {
+                if (normalizeText(rows[i][cols.user]) === target) {
+                    return String(
+                        rows[i][cols.sensitivity] ?? ""
+                    ).trim();
+                }
+            }
 
-        sheet.getRangeByIndexes(0, 0, 1, QUEUE_HEADERS.length).values = [
-          QUEUE_HEADERS,
-        ];
+            return "";
+        });
+    }
 
-        sheet.visibility = Excel.SheetVisibility.hidden;
-      }
+    /** Diagnostics: returns Database row count, detected columns, sample data. */
+    async function diagnose() {
+        return Excel.run(async (ctx) => {
+            const wb = ctx.workbook;
 
-      const used = sheet.getUsedRangeOrNullObject();
-      used.load("rowCount");
+            const sheet = wb.worksheets.getItemOrNullObject(
+                DB_SHEET_NAME
+            );
 
-      await ctx.sync();
+            sheet.load("name");
 
-      const nextRowIdx = used.isNullObject ? 1 : used.rowCount;
+            const active = wb.worksheets.getActiveWorksheet();
 
-      const row = sheet.getRangeByIndexes(
-        nextRowIdx,
-        0,
-        1,
-        QUEUE_HEADERS.length
-      );
+            active.load("name");
 
-      row.values = [[
-        new Date().toISOString(),
-        payload.clientName,
-        payload.userName,
-        payload.pod || "POD X",
-        "Pending",
-        "",
-      ]];
+            await ctx.sync();
 
-      await ctx.sync();
+            const out = {
+                databaseSheetFound: !sheet.isNullObject,
+                activeSheet: active.name,
+                rowCount: 0,
+                detectedColumns: null,
+                startRow: 0,
+                header: [],
+                sample: [],
+            };
 
-      return { ok: true, row: nextRowIdx + 1 };
-    });
-  }
+            if (sheet.isNullObject) {
+                return out;
+            }
 
-  async function appendTime(timeValue) {
-    return Excel.run(async (ctx) => {
-      const cell = ctx.workbook.getActiveCell();
+            const used = sheet.getUsedRange();
 
-      cell.load("values");
-      await ctx.sync();
+            used.load("values");
 
-      const old = String(cell.values?.[0]?.[0] || "");
-      const matches = old.match(/(\d{1,2}:\d{2})/g) || [];
+            await ctx.sync();
 
-      matches.push(timeValue);
+            const rows = used.values || [];
 
-      cell.values = [[matches.join(" / ")]];
+            const det = detectColumns(rows);
 
-      await ctx.sync();
+            out.rowCount = rows.length;
+            out.detectedColumns = det.cols;
+            out.startRow = det.startRow;
+            out.header = rows[0] || [];
+            out.sample = rows.slice(
+                det.startRow,
+                det.startRow + 3
+            );
 
-      return matches.join(" / ");
-    });
-  }
+            return out;
+        });
+    }
 
-  async function saveDateTime(day, hour, minute, ampm) {
-    return Excel.run(async (ctx) => {
-      const cell = ctx.workbook.getActiveCell();
+    async function getClientListWithPOD() {
+        return Excel.run(async (ctx) => {
+            const rows = await loadDatabase(ctx);
 
-      const formatted =
-        day.substring(0, 3) +
-        ", " +
-        hour +
-        ":" +
-        String(minute).padStart(2, "0") +
-        " " +
-        ampm;
+            const { cols, startRow } = detectColumns(rows);
 
-      cell.values = [[formatted]];
+            const seen = new Set();
 
-      await ctx.sync();
+            const out = [];
 
-      return formatted;
-    });
-  }
+            for (let i = startRow; i < rows.length; i++) {
+                const c = String(rows[i][cols.client] || "");
 
-  return {
-    getDropdownData,
-    getClientsBasedOnUser,
-    getClientDetails,
-    getSensitivity,
-    getClientListWithPOD,
-    submitForm,
-    saveNewClient,
-    appendTime,
-    saveDateTime,
-  };
+                const p = String(rows[i][cols.pod] || "POD X");
+
+                if (c && !seen.has(c)) {
+                    seen.add(c);
+
+                    out.push({
+                        client: c,
+                        pod: p,
+                    });
+                }
+            }
+
+            return out;
+        });
+    }
+
+    /**
+     * Append a Fill Row record to the active worksheet.
+     * Mirrors `submitForm` from `using form.gs`.
+     */
+    async function submitForm(form) {
+        return Excel.run(async (ctx) => {
+            const sheet =
+                ctx.workbook.worksheets.getActiveWorksheet();
+
+            const used = sheet.getUsedRangeOrNullObject();
+
+            used.load("rowCount");
+
+            await ctx.sync();
+
+            const nextRowIdx = used.isNullObject
+                ? 0
+                : used.rowCount; // 0-based
+
+            const range = sheet.getRangeByIndexes(
+                nextRowIdx,
+                0,
+                1,
+                17
+            );
+
+            const values = [[
+                false, // 1 Checkbox placeholder
+                form.date, // 2 Date
+                form.softwareId, // 3 Software ID
+                form.inTime, // 4 In Time
+                form.user, // 5 User
+                form.client, // 6 Client
+                form.clientCode, // 7 Client ID
+                form.pod, // 8 POD
+                form.sensitivity, // 9 Sensitivity
+                form.projectCode, // 10 Charge Code
+                form.jobDescription, // 11 Job description
+                form.newValue, // 12 New
+                form.edits, // 13 Edits
+                form.rework, // 14 Formatting
+                "", // 15 left blank — matches original
+                "TBC", // 16 CSS DL
+                "TBC", // 17 VA DL
+            ]];
+
+            range.values = values;
+
+            if (form.sensitivity === "High") {
+                const userCell = sheet.getRangeByIndexes(
+                    nextRowIdx,
+                    4,
+                    1,
+                    1
+                );
+
+                userCell.format.font.color = "#FF0000";
+            }
+
+            await ctx.sync();
+
+            return {
+                ok: true,
+                row: nextRowIdx + 1,
+            };
+        });
+    }
+
+    /**
+     * Append a new client / user mapping directly to the master Database table
+     * (`tbl_Database`) inside S4U CLIENT DB.xlsx.
+     *
+     * This function MUST run inside the master workbook. The `New Client`
+     * task pane is delivered only by manifest-masterdb.xml, but as a defensive
+     * measure we also check for the presence of `tbl_Database` and refuse to
+     * write otherwise (PODs would lose the write on the next Power Query
+     * refresh).
+     *
+     * POD workbooks pick up the new row automatically via their existing
+     * Power Query mirror on next open or Refresh All.
+     */
+    async function saveNewClient(payload) {
+        return Excel.run(async (ctx) => {
+            const wb = ctx.workbook;
+
+            const table = wb.tables.getItemOrNullObject(
+                DB_TABLE_NAME
+            );
+
+            table.load("name");
+
+            await ctx.sync();
+
+            if (table.isNullObject) {
+                throw new Error(
+                    "Master Database table '" +
+                        DB_TABLE_NAME +
+                        "' was not found in this workbook. Open S4U CLIENT DB.xlsx and try again."
+                );
+            }
+
+            // Read the header to map our payload to whatever column order the
+            // master table happens to use (User / Client Name / Client Code /
+            // POD / Sensitivity / Reviewing or any variation).
+
+            const headerRange = table.getHeaderRowRange();
+
+            headerRange.load("values");
+
+            await ctx.sync();
+
+            const header =
+                (headerRange.values && headerRange.values[0]) || [];
+
+            const norm = (v) =>
+                String(v ?? "").trim().toLowerCase();
+
+            // Map known fields. Anything we don't recognise stays blank so we
+            // don't overwrite custom admin columns.
+
+            const aliases = {
+                user: [
+                    "user",
+                    "username",
+                    "user name",
+                ],
+
+                client: [
+                    "client",
+                    "client name",
+                    "clientname",
+                ],
+
+                clientId: [
+                    "client id",
+                    "clientid",
+                    "client code",
+                    "clientcode",
+                    "client_id",
+                ],
+
+                pod: ["pod"],
+
+                sensitivity: ["sensitivity"],
+
+                reviewing: [
+                    "reviewing",
+                    "inc",
+                    "flag",
+                ],
+            };
+
+            const idx = {};
+
+            header.forEach((h, i) => {
+                const n = norm(h);
+
+                for (const key of Object.keys(aliases)) {
+                    if (
+                        aliases[key].includes(n) &&
+                        idx[key] === undefined
+                    ) {
+                        idx[key] = i;
+                    }
+                }
+            });
+
+            const row = new Array(header.length).fill("");
+
+            const put = (key, value) => {
+                if (idx[key] !== undefined) {
+                    row[idx[key]] = value;
+                }
+            };
+
+            put("user", payload.userName || "");
+            put("client", payload.clientName || "");
+            put("clientId", payload.clientCode || "");
+            put("pod", payload.pod || "POD X");
+            put("sensitivity", payload.sensitivity || "High");
+            put("reviewing", payload.reviewing || "INC");
+
+            const added = table.rows.add(null, [row]);
+
+            added.load("index");
+
+            await ctx.sync();
+
+            return {
+                ok: true,
+                rowIndex: added.index,
+                columns: header,
+            };
+        });
+    }
+
+    /**
+     * Helper used by the New Client form to fetch the master table header so it
+     * can render a single-row form aligned to whatever columns exist today.
+     */
+    async function getMasterTableHeader() {
+        return Excel.run(async (ctx) => {
+            const wb = ctx.workbook;
+
+            const table = wb.tables.getItemOrNullObject(
+                DB_TABLE_NAME
+            );
+
+            table.load("name");
+
+            await ctx.sync();
+
+            if (table.isNullObject) {
+                return [];
+            }
+
+            const headerRange = table.getHeaderRowRange();
+
+            headerRange.load("values");
+
+            await ctx.sync();
+
+            return (
+                (headerRange.values && headerRange.values[0]) || []
+            );
+        });
+    }
+
+    /** Append HH:MM to active cell, preserving slash-history (mirror appendTime). */
+    async function appendTime(timeValue) {
+        return Excel.run(async (ctx) => {
+            const cell = ctx.workbook.getActiveCell();
+
+            cell.load("values");
+
+            await ctx.sync();
+
+            const old = String(
+                (cell.values &&
+                    cell.values[0] &&
+                    cell.values[0][0]) ||
+                    ""
+            );
+
+            const matches =
+                old.match(/(\d{1,2}:\d{2})/g) || [];
+
+            matches.push(timeValue);
+
+            cell.values = [[matches.join(" / ")]];
+
+            await ctx.sync();
+
+            return matches.join(" / ");
+        });
+    }
+
+    /** Save "Mon, 09:00 AM" to active cell (mirror saveDateTimeToSheet). */
+    async function saveDateTime(day, hour, minute, ampm) {
+        return Excel.run(async (ctx) => {
+            const cell = ctx.workbook.getActiveCell();
+
+            const formatted =
+                day.substring(0, 3) +
+                ", " +
+                hour +
+                ":" +
+                String(minute).padStart(2, "0") +
+                " " +
+                ampm;
+
+            cell.values = [[formatted]];
+
+            await ctx.sync();
+
+            return formatted;
+        });
+    }
+
+    return {
+        getWorkbookContext,
+        getDropdownData,
+        getClientsBasedOnUser,
+        getClientDetails,
+        getSensitivity,
+        getClientListWithPOD,
+        submitForm,
+        saveNewClient,
+        getMasterTableHeader,
+        appendTime,
+        saveDateTime,
+        diagnose,
+    };
 })();
