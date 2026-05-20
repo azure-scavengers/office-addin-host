@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>New Client</title>
+
+  <title>S4U Client DB - New Client</title>
+
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
   <script src="common.js"></script>
 
@@ -17,6 +19,9 @@
       --brand: #2563eb;
       --brand-hover: #1d4ed8;
       --success: #16a34a;
+      --warn-bg: #fffbeb;
+      --warn-fg: #92400e;
+      --warn-line: #fde68a;
     }
 
     * {
@@ -25,14 +30,11 @@
 
     body {
       margin: 0;
-      padding: 12px;
       font-family: Segoe UI, Calibri, sans-serif;
       color: var(--text);
       background: var(--bg);
+      padding: 12px;
       overflow-y: auto;
-      overflow-x: hidden;
-      -webkit-overflow-scrolling: touch;
-      touch-action: pan-y;
     }
 
     .shell {
@@ -58,7 +60,7 @@
     }
 
     .subtitle {
-      margin-top: 4px;
+      margin: 4px 0 0;
       color: var(--muted);
       font-size: 12px;
     }
@@ -75,6 +77,7 @@
     .section h4 {
       margin: 0 0 10px;
       font-size: 12px;
+      letter-spacing: 0.02em;
       text-transform: uppercase;
       color: var(--muted);
     }
@@ -102,7 +105,6 @@
       border-radius: 8px;
       background: #fff;
       font-size: 13px;
-      pointer-events: auto;
     }
 
     input[readonly] {
@@ -122,7 +124,7 @@
       border-radius: 10px;
       background: var(--brand);
       color: #fff;
-      padding: 11px;
+      padding: 11px 12px;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
@@ -133,7 +135,7 @@
     }
 
     button:disabled {
-      opacity: 0.7;
+      opacity: 0.6;
       cursor: not-allowed;
     }
 
@@ -154,151 +156,321 @@
       border: 1px solid #bbf7d0;
       text-align: center;
     }
+
+    .banner {
+      margin: 8px 14px 0;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: var(--warn-bg);
+      color: var(--warn-fg);
+      font-size: 12px;
+      border: 1px solid var(--warn-line);
+    }
+
+    .banner.error {
+      background: #fef2f2;
+      color: #991b1b;
+      border-color: #fecaca;
+    }
   </style>
 </head>
 
 <body>
   <div class="shell">
     <div class="header">
-      <h3 class="title">New / Existing Client</h3>
-      <p class="subtitle">Single-entry queue form (Task Pane)</p>
+      <h3 class="title">New Client</h3>
+
+      <p class="subtitle">
+        Add directly to the master Client DB.
+        POD workbooks auto-pull on next refresh.
+      </p>
     </div>
 
-    <!-- Existing Client -->
-    <div class="section">
-      <h4>Existing Client + New User</h4>
+    <div id="ctxBanner" class="banner" style="display:none;"></div>
 
-      <div class="field">
-        <label for="existing_clientName">Client</label>
-        <select id="existing_clientName"></select>
+    <div id="formBody">
+      <div class="section">
+        <h4>Existing Client - New User</h4>
+
+        <div class="field">
+          <label for="existing_clientName">Client</label>
+
+          <select id="existing_clientName">
+            <option value="">Loading clients...</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="existing_userName">User</label>
+
+          <input
+            type="text"
+            id="existing_userName"
+            placeholder="New user name"
+          />
+        </div>
+
+        <div class="field">
+          <label for="existing_pod">POD</label>
+
+          <input type="text" id="existing_pod" readonly />
+        </div>
+
+        <div class="actions">
+          <button id="existingSubmit" disabled>
+            Add User to Existing Client
+          </button>
+        </div>
       </div>
 
-      <div class="field">
-        <label for="existing_userName">User</label>
-        <input type="text" id="existing_userName" required />
+      <div class="section">
+        <h4>Brand New Client</h4>
+
+        <div class="field">
+          <label for="new_clientName">Client</label>
+
+          <input
+            type="text"
+            id="new_clientName"
+            placeholder="New client name"
+          />
+        </div>
+
+        <div class="field">
+          <label for="new_userName">User</label>
+
+          <input
+            type="text"
+            id="new_userName"
+            placeholder="User name"
+          />
+        </div>
+
+        <div class="field">
+          <label for="new_pod">POD</label>
+
+          <select id="new_pod">
+            <option value="">Select POD</option>
+          </select>
+        </div>
+
+        <div class="actions">
+          <button id="newSubmit" disabled>
+            Add New Client
+          </button>
+        </div>
+
+        <div class="hint">
+          Defaults applied:
+          <b>Sensitivity = High</b>,
+          <b>Reviewing = INC</b>,
+          <b>Client Code = blank</b>
+          (fill manually if needed).
+        </div>
+
+        <div id="toast" class="toast">
+          Added successfully.
+        </div>
       </div>
-
-      <div class="field">
-        <label for="existing_pod">POD</label>
-        <input type="text" id="existing_pod" readonly />
-      </div>
-
-      <div class="actions">
-        <button id="existingSubmit">Queue Existing Client</button>
-      </div>
-    </div>
-
-    <!-- New Client -->
-    <div class="section">
-      <h4>Brand New Client</h4>
-
-      <div class="field">
-        <label for="new_clientName">Client</label>
-        <input type="text" id="new_clientName" required />
-      </div>
-
-      <div class="field">
-        <label for="new_userName">User</label>
-        <input type="text" id="new_userName" required />
-      </div>
-
-      <div class="field">
-        <label for="new_pod">POD</label>
-        <select id="new_pod"></select>
-      </div>
-
-      <div class="actions">
-        <button id="newSubmit">Queue New Client</button>
-      </div>
-
-      <div class="hint">
-        Client/User requests are queued into <b>_NewClientQueue</b> for admin reconciliation.
-      </div>
-
-      <div id="toast" class="toast">Queued successfully.</div>
     </div>
   </div>
 
   <script>
-    const toast = document.getElementById("toast");
+    const banner = document.getElementById("ctxBanner");
+    const existingClientSelect = document.getElementById("existing_clientName");
+    const existingPodField = document.getElementById("existing_pod");
+    const newPodSelect = document.getElementById("new_pod");
     const existingSubmit = document.getElementById("existingSubmit");
     const newSubmit = document.getElementById("newSubmit");
+    const toast = document.getElementById("toast");
 
-    function showToast(message) {
-      toast.textContent = message;
+    function showBanner(msg, kind) {
+      banner.textContent = msg;
+      banner.classList.toggle("error", kind === "error");
+      banner.style.display = "block";
+    }
+
+    function showToast(msg) {
+      toast.textContent = msg;
       toast.style.display = "block";
+
       setTimeout(() => {
         toast.style.display = "none";
-      }, 2200);
+      }, 2500);
     }
 
     Office.onReady(async () => {
-      const dropdown = document.getElementById("existing_clientName");
-      const podField = document.getElementById("existing_pod");
+      // Hard guard: only operate inside the master Client DB workbook.
+      let ctx;
 
-      const list = await POD_BOOKING.getClientListWithPOD();
-
-      const defaultOption = document.createElement("option");
-      defaultOption.value = "";
-      defaultOption.textContent = "Select Client";
-      dropdown.appendChild(defaultOption);
-
-      list.forEach(item => {
-        const option = document.createElement("option");
-        option.value = item.client;
-        option.textContent = item.client;
-        dropdown.appendChild(option);
-      });
-
-      dropdown.addEventListener("change", () => {
-        const selected = list.find(c => c.client === dropdown.value);
-        podField.value = selected ? selected.pod : "";
-      });
-
-      // POD options for new client
-      const podSelect = document.getElementById("new_pod");
-      ["Pod X"].forEach(p => {
-        const option = document.createElement("option");
-        option.value = p;
-        option.textContent = p;
-        podSelect.appendChild(option);
-      });
-    });
-
-    async function submit(formId) {
-      const clientName = document.getElementById(formId + "_clientName").value;
-      const userName = document.getElementById(formId + "_userName").value;
-      const pod = (document.getElementById(formId + "_pod") || {}).value || "";
-
-      if (!clientName || !userName) {
-        alert("Please fill all fields.");
+      try {
+        ctx = await POD_BOOKING.getWorkbookContext();
+      } catch (e) {
+        showBanner(
+          "Could not access workbook: " + e.message,
+          "error"
+        );
         return;
       }
 
+      if (ctx.role !== "master") {
+        showBanner(
+          "This task pane must be opened in the master " +
+          "S4U CLIENT DB.xlsx workbook " +
+          "(the one that contains the tbl_Database Excel Table). " +
+          "Open that file from SharePoint and try again.",
+          "error"
+        );
+
+        document.getElementById("formBody").style.display = "none";
+        return;
+      }
+
+      // We are in master. Load the client list from the table.
       try {
-        if (formId === "existing") {
-          existingSubmit.disabled = true;
-          existingSubmit.textContent = "Submitting...";
-        } else {
-          newSubmit.disabled = true;
-          newSubmit.textContent = "Submitting...";
-        }
+        const list = await POD_BOOKING.getClientListWithPOD();
 
-        await POD_BOOKING.saveNewClient({ clientName, userName, pod });
+        existingClientSelect.innerHTML =
+          '<option value="">Select Client</option>';
 
-        showToast("Queued successfully.");
-      } catch (error) {
-        alert("Failed to save: " + error.message);
-      } finally {
+        list.sort((a, b) =>
+          a.client.localeCompare(b.client)
+        );
+
+        list.forEach((item) => {
+          const opt = document.createElement("option");
+
+          opt.value = item.client;
+          opt.textContent = item.client;
+          opt.dataset.pod = item.pod;
+
+          existingClientSelect.appendChild(opt);
+        });
+
+        existingClientSelect.addEventListener("change", () => {
+          const sel =
+            existingClientSelect.options[
+              existingClientSelect.selectedIndex
+            ];
+
+          existingPodField.value =
+            (sel && sel.dataset.pod) || "";
+        });
+
+        // Derive POD options from data, fall back to a static list.
+        const pods = Array.from(
+          new Set(
+            list
+              .map((i) => i.pod)
+              .filter(Boolean)
+          )
+        ).sort();
+
+        newPodSelect.innerHTML =
+          '<option value="">Select POD</option>';
+
+        const podOptions = pods.length
+          ? pods
+          : ["A", "B", "RoW"];
+
+        podOptions.forEach((p) => {
+          const opt = document.createElement("option");
+
+          opt.value = p;
+          opt.textContent = p;
+
+          newPodSelect.appendChild(opt);
+        });
+
         existingSubmit.disabled = false;
         newSubmit.disabled = false;
-        existingSubmit.textContent = "Queue Existing Client";
-        newSubmit.textContent = "Queue New Client";
+      } catch (e) {
+        showBanner(
+          "Failed to load clients: " + e.message,
+          "error"
+        );
+      }
+    });
+
+    async function submit(formId) {
+      const clientName =
+        document.getElementById(
+          formId + "_clientName"
+        ).value;
+
+      const userName =
+        document.getElementById(
+          formId + "_userName"
+        ).value;
+
+      const pod =
+        (
+          document.getElementById(
+            formId + "_pod"
+          ) || {}
+        ).value || "";
+
+      if (!clientName || !userName) {
+        alert("Please fill Client and User.");
+        return;
+      }
+
+      if (formId === "new" && !pod) {
+        alert("Please select a POD.");
+        return;
+      }
+
+      const btn =
+        formId === "existing"
+          ? existingSubmit
+          : newSubmit;
+
+      const label = btn.textContent;
+
+      btn.disabled = true;
+      btn.textContent = "Adding...";
+
+      try {
+        await POD_BOOKING.saveNewClient({
+          clientName: clientName.trim(),
+          userName: userName.trim(),
+          pod: pod.trim(),
+          sensitivity: "High",
+          reviewing: "INC",
+        });
+
+        showToast(
+          formId === "existing"
+            ? "User added to " + clientName + "."
+            : "Client " + clientName + " added."
+        );
+
+        document.getElementById(
+          formId + "_userName"
+        ).value = "";
+
+        if (formId === "new") {
+          document.getElementById(
+            "new_clientName"
+          ).value = "";
+        }
+      } catch (e) {
+        alert("Failed to add row: " + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
       }
     }
 
-    existingSubmit.addEventListener("click", () => submit("existing"));
-    newSubmit.addEventListener("click", () => submit("new"));
+    existingSubmit.addEventListener(
+      "click",
+      () => submit("existing")
+    );
+
+    newSubmit.addEventListener(
+      "click",
+      () => submit("new")
+    );
   </script>
 </body>
 </html>
