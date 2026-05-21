@@ -204,27 +204,31 @@
       return -1;
     }
 
-    Office.onReady(async () => {
+    function initForm() {
+      const formBody = document.getElementById("formBody");
       // Hard guard: only operate inside the master Client DB workbook.
-      let isMaster;
-      try {
-        isMaster = await isMasterWorkbook();
-      } catch (e) {
-        showBanner("Could not access workbook: " + (e && e.message ? e.message : e), "error");
-        return;
-      }
-      if (!isMaster) {
-        showBanner(
-          "This task pane must be opened in the master S4U CLIENT DB.xlsx workbook " +
-          "(the one that contains the tbl_Database Excel Table). Open that file " +
-          "from SharePoint and try again.",
-          "error"
-        );
-        document.getElementById("formBody").style.display = "none";
-        return;
-      }
+      isMasterWorkbook()
+        .catch((e) => {
+          showBanner("Could not access workbook: " + (e && e.message ? e.message : e), "error");
+          return null;
+        })
+        .then((isMaster) => {
+          if (isMaster === null) return;
+          if (!isMaster) {
+            showBanner(
+              "This task pane must be opened in the master S4U CLIENT DB.xlsx workbook " +
+              "(the one that contains the tbl_Database Excel Table). Open that file " +
+              "from SharePoint and try again.",
+              "error"
+            );
+            formBody.style.display = "none";
+            return;
+          }
+          loadAndBindClients();
+        });
+    }
 
-      // We are in master. Load Client + POD pairs straight from tbl_Database.
+    async function loadAndBindClients() {
       try {
         const data = await loadMasterClients();
         const cClient = findColumn(data.header, ["client", "client name", "clientname"]);
@@ -268,7 +272,48 @@
       } catch (e) {
         showBanner("Failed to load clients: " + (e && e.message ? e.message : e), "error");
       }
-    });
+    }
+
+    // ------------------------------------------------------------------
+    // Bootstrap. Wait for Office.js and verify the Excel host API is
+    // actually available before we touch Excel.run. This avoids the
+    // "Excel is not defined" race that fires when Office.onReady
+    // resolves before Excel is bound into the page.
+    // ------------------------------------------------------------------
+    function whenExcelReady(cb, attempt) {
+      attempt = attempt || 0;
+      if (typeof Excel !== "undefined" && Excel && typeof Excel.run === "function") {
+        cb();
+        return;
+      }
+      if (attempt > 40) {  // ~10s
+        showBanner(
+          "This task pane must be opened inside Microsoft Excel (Desktop or " +
+          "Excel for the Web). The Excel API is not available in this context.",
+          "error"
+        );
+        document.getElementById("formBody").style.display = "none";
+        return;
+      }
+      setTimeout(function () { whenExcelReady(cb, attempt + 1); }, 250);
+    }
+
+    if (typeof Office === "undefined") {
+      showBanner(
+        "Office.js failed to load. Make sure this page was opened from inside Excel.",
+        "error"
+      );
+      document.getElementById("formBody").style.display = "none";
+    } else {
+      Office.onReady(function (info) {
+        if (info && info.host && info.host !== Office.HostType.Excel) {
+          showBanner("This pane runs only inside Excel.", "error");
+          document.getElementById("formBody").style.display = "none";
+          return;
+        }
+        whenExcelReady(initForm);
+      });
+    }
 
     async function submit(formId) {
       const clientName = document.getElementById(formId + "_clientName").value;
