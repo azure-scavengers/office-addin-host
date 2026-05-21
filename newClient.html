@@ -3,12 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <title>S4U Client DB - New Client</title>
-
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
   <script src="common.js"></script>
-
   <style>
     :root {
       --bg: #f5f7fb;
@@ -23,11 +20,7 @@
       --warn-fg: #92400e;
       --warn-line: #fde68a;
     }
-
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: Segoe UI, Calibri, sans-serif;
@@ -36,7 +29,6 @@
       padding: 12px;
       overflow-y: auto;
     }
-
     .shell {
       max-width: 460px;
       margin: 0 auto;
@@ -46,232 +38,105 @@
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
       overflow: hidden;
     }
-
     .header {
       padding: 14px 16px;
       border-bottom: 1px solid var(--line);
       background: #f8fbff;
     }
-
-    .title {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 700;
-    }
-
-    .subtitle {
-      margin: 4px 0 0;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .section {
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .section:last-of-type {
-      border-bottom: 0;
-    }
-
+    .title { margin: 0; font-size: 16px; font-weight: 700; }
+    .subtitle { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .section { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+    .section:last-of-type { border-bottom: 0; }
     .section h4 {
       margin: 0 0 10px;
       font-size: 12px;
-      letter-spacing: 0.02em;
+      letter-spacing: .02em;
       text-transform: uppercase;
       color: var(--muted);
     }
-
-    .field {
-      margin-bottom: 10px;
+    .field { margin-bottom: 10px; }
+    .field:last-child { margin-bottom: 0; }
+    label { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 600; }
+    input, select {
+      width: 100%; padding: 9px 10px;
+      border: 1px solid #d1d5db; border-radius: 8px; background: #fff; font-size: 13px;
     }
-
-    .field:last-child {
-      margin-bottom: 0;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    input,
-    select {
-      width: 100%;
-      padding: 9px 10px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      background: #fff;
-      font-size: 13px;
-    }
-
-    input[readonly] {
-      background: #f3f4f6;
-      color: #374151;
-    }
-
-    .actions {
-      margin-top: 10px;
-      display: grid;
-      gap: 8px;
-    }
-
+    input[readonly] { background: #f3f4f6; color: #374151; }
+    .actions { margin-top: 10px; display: grid; gap: 8px; }
     button {
-      width: 100%;
-      border: 0;
-      border-radius: 10px;
-      background: var(--brand);
-      color: #fff;
-      padding: 11px 12px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
+      width: 100%; border: 0; border-radius: 10px;
+      background: var(--brand); color: #fff;
+      padding: 11px 12px; font-size: 14px; font-weight: 600; cursor: pointer;
     }
-
-    button:hover {
-      background: var(--brand-hover);
-    }
-
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .hint {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 6px;
-    }
-
+    button:hover { background: var(--brand-hover); }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
     .toast {
-      display: none;
-      margin-top: 8px;
-      padding: 8px 10px;
-      border-radius: 8px;
-      background: #ecfdf3;
-      color: var(--success);
-      font-size: 12px;
-      border: 1px solid #bbf7d0;
-      text-align: center;
+      display: none; margin-top: 8px; padding: 8px 10px;
+      border-radius: 8px; background: #ecfdf3; color: var(--success);
+      font-size: 12px; border: 1px solid #bbf7d0; text-align: center;
     }
-
     .banner {
-      margin: 8px 14px 0;
-      padding: 8px 10px;
-      border-radius: 8px;
-      background: var(--warn-bg);
-      color: var(--warn-fg);
-      font-size: 12px;
-      border: 1px solid var(--warn-line);
+      margin: 8px 14px 0; padding: 8px 10px;
+      border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg);
+      font-size: 12px; border: 1px solid var(--warn-line);
     }
-
     .banner.error {
-      background: #fef2f2;
-      color: #991b1b;
-      border-color: #fecaca;
+      background: #fef2f2; color: #991b1b; border-color: #fecaca;
     }
   </style>
 </head>
-
 <body>
   <div class="shell">
     <div class="header">
       <h3 class="title">New Client</h3>
-
-      <p class="subtitle">
-        Add directly to the master Client DB.
-        POD workbooks auto-pull on next refresh.
-      </p>
+      <p class="subtitle">Add directly to the master Client DB. POD workbooks auto-pull on next refresh.</p>
     </div>
 
     <div id="ctxBanner" class="banner" style="display:none;"></div>
 
     <div id="formBody">
+
       <div class="section">
         <h4>Existing Client - New User</h4>
-
         <div class="field">
           <label for="existing_clientName">Client</label>
-
-          <select id="existing_clientName">
-            <option value="">Loading clients...</option>
-          </select>
+          <select id="existing_clientName"><option value="">Loading clients...</option></select>
         </div>
-
         <div class="field">
           <label for="existing_userName">User</label>
-
-          <input
-            type="text"
-            id="existing_userName"
-            placeholder="New user name"
-          />
+          <input type="text" id="existing_userName" placeholder="New user name" />
         </div>
-
         <div class="field">
           <label for="existing_pod">POD</label>
-
           <input type="text" id="existing_pod" readonly />
         </div>
-
         <div class="actions">
-          <button id="existingSubmit" disabled>
-            Add User to Existing Client
-          </button>
+          <button id="existingSubmit" disabled>Add User to Existing Client</button>
         </div>
       </div>
 
       <div class="section">
         <h4>Brand New Client</h4>
-
         <div class="field">
           <label for="new_clientName">Client</label>
-
-          <input
-            type="text"
-            id="new_clientName"
-            placeholder="New client name"
-          />
+          <input type="text" id="new_clientName" placeholder="New client name" />
         </div>
-
         <div class="field">
           <label for="new_userName">User</label>
-
-          <input
-            type="text"
-            id="new_userName"
-            placeholder="User name"
-          />
+          <input type="text" id="new_userName" placeholder="User name" />
         </div>
-
         <div class="field">
           <label for="new_pod">POD</label>
-
-          <select id="new_pod">
-            <option value="">Select POD</option>
-          </select>
+          <select id="new_pod"><option value="">Select POD</option></select>
         </div>
-
         <div class="actions">
-          <button id="newSubmit" disabled>
-            Add New Client
-          </button>
+          <button id="newSubmit" disabled>Add New Client</button>
         </div>
-
-        <div class="hint">
-          Defaults applied:
-          <b>Sensitivity = High</b>,
-          <b>Reviewing = INC</b>,
-          <b>Client Code = blank</b>
-          (fill manually if needed).
-        </div>
-
-        <div id="toast" class="toast">
-          Added successfully.
-        </div>
+        <div class="hint">Defaults applied: <b>Sensitivity = High</b>, <b>Reviewing = INC</b>, <b>Client Code = blank</b> (fill manually if needed).</div>
+        <div id="toast" class="toast">Added successfully.</div>
       </div>
+
     </div>
   </div>
 
@@ -293,166 +158,144 @@
     function showToast(msg) {
       toast.textContent = msg;
       toast.style.display = "block";
+      setTimeout(() => { toast.style.display = "none"; }, 2500);
+    }
 
-      setTimeout(() => {
-        toast.style.display = "none";
-      }, 2500);
+    // ------------------------------------------------------------------
+    // Local helpers (master-only). Read directly from the tbl_Database
+    // Excel Table inside S4U CLIENT DB.xlsx. We do NOT use common.js's
+    // loadDatabase here because PODs use that to read their Database sheet.
+    // ------------------------------------------------------------------
+    const MASTER_TABLE = "tbl_Database";
+
+    async function isMasterWorkbook() {
+      return Excel.run(async (ctx) => {
+        const table = ctx.workbook.tables.getItemOrNullObject(MASTER_TABLE);
+        table.load("name");
+        await ctx.sync();
+        return !table.isNullObject;
+      });
+    }
+
+    async function loadMasterClients() {
+      return Excel.run(async (ctx) => {
+        const table = ctx.workbook.tables.getItemOrNullObject(MASTER_TABLE);
+        table.load("name");
+        await ctx.sync();
+        if (table.isNullObject) return { header: [], rows: [] };
+
+        const headerRange = table.getHeaderRowRange();
+        const bodyRange   = table.getDataBodyRange();
+        headerRange.load("values");
+        bodyRange.load("values");
+        await ctx.sync();
+
+        const header = (headerRange.values && headerRange.values[0]) || [];
+        const rows   = bodyRange.values || [];
+        return { header, rows };
+      });
+    }
+
+    function findColumn(header, aliases) {
+      const norm = (v) => String(v == null ? "" : v).trim().toLowerCase();
+      for (let i = 0; i < header.length; i++) {
+        if (aliases.indexOf(norm(header[i])) !== -1) return i;
+      }
+      return -1;
     }
 
     Office.onReady(async () => {
       // Hard guard: only operate inside the master Client DB workbook.
-      let ctx;
-
+      let isMaster;
       try {
-        ctx = await POD_BOOKING.getWorkbookContext();
+        isMaster = await isMasterWorkbook();
       } catch (e) {
-        showBanner(
-          "Could not access workbook: " + e.message,
-          "error"
-        );
+        showBanner("Could not access workbook: " + (e && e.message ? e.message : e), "error");
         return;
       }
-
-      if (ctx.role !== "master") {
+      if (!isMaster) {
         showBanner(
-          "This task pane must be opened in the master " +
-          "S4U CLIENT DB.xlsx workbook " +
-          "(the one that contains the tbl_Database Excel Table). " +
-          "Open that file from SharePoint and try again.",
+          "This task pane must be opened in the master S4U CLIENT DB.xlsx workbook " +
+          "(the one that contains the tbl_Database Excel Table). Open that file " +
+          "from SharePoint and try again.",
           "error"
         );
-
         document.getElementById("formBody").style.display = "none";
         return;
       }
 
-      // We are in master. Load the client list from the table.
+      // We are in master. Load Client + POD pairs straight from tbl_Database.
       try {
-        const list = await POD_BOOKING.getClientListWithPOD();
+        const data = await loadMasterClients();
+        const cClient = findColumn(data.header, ["client", "client name", "clientname"]);
+        const cPod    = findColumn(data.header, ["pod"]);
 
-        existingClientSelect.innerHTML =
-          '<option value="">Select Client</option>';
+        const seen = new Set();
+        const list = [];
+        for (let i = 0; i < data.rows.length; i++) {
+          const row = data.rows[i];
+          const client = cClient >= 0 ? String(row[cClient] == null ? "" : row[cClient]).trim() : "";
+          const pod    = cPod    >= 0 ? String(row[cPod]    == null ? "" : row[cPod]).trim()    : "";
+          if (client && !seen.has(client)) { seen.add(client); list.push({ client: client, pod: pod }); }
+        }
 
-        list.sort((a, b) =>
-          a.client.localeCompare(b.client)
-        );
-
+        existingClientSelect.innerHTML = '<option value="">Select Client</option>';
+        list.sort((a, b) => a.client.localeCompare(b.client));
         list.forEach((item) => {
           const opt = document.createElement("option");
-
           opt.value = item.client;
           opt.textContent = item.client;
           opt.dataset.pod = item.pod;
-
           existingClientSelect.appendChild(opt);
         });
-
         existingClientSelect.addEventListener("change", () => {
-          const sel =
-            existingClientSelect.options[
-              existingClientSelect.selectedIndex
-            ];
-
-          existingPodField.value =
-            (sel && sel.dataset.pod) || "";
+          const sel = existingClientSelect.options[existingClientSelect.selectedIndex];
+          existingPodField.value = (sel && sel.dataset.pod) || "";
         });
 
         // Derive POD options from data, fall back to a static list.
-        const pods = Array.from(
-          new Set(
-            list
-              .map((i) => i.pod)
-              .filter(Boolean)
-          )
-        ).sort();
-
-        newPodSelect.innerHTML =
-          '<option value="">Select POD</option>';
-
-        const podOptions = pods.length
-          ? pods
-          : ["A", "B", "RoW"];
-
+        const pods = Array.from(new Set(list.map((i) => i.pod).filter(Boolean))).sort();
+        newPodSelect.innerHTML = '<option value="">Select POD</option>';
+        const podOptions = pods.length ? pods : ["A", "B", "RoW"];
         podOptions.forEach((p) => {
           const opt = document.createElement("option");
-
-          opt.value = p;
-          opt.textContent = p;
-
+          opt.value = p; opt.textContent = p;
           newPodSelect.appendChild(opt);
         });
 
         existingSubmit.disabled = false;
         newSubmit.disabled = false;
       } catch (e) {
-        showBanner(
-          "Failed to load clients: " + e.message,
-          "error"
-        );
+        showBanner("Failed to load clients: " + (e && e.message ? e.message : e), "error");
       }
     });
 
     async function submit(formId) {
-      const clientName =
-        document.getElementById(
-          formId + "_clientName"
-        ).value;
+      const clientName = document.getElementById(formId + "_clientName").value;
+      const userName   = document.getElementById(formId + "_userName").value;
+      const pod        = (document.getElementById(formId + "_pod") || {}).value || "";
 
-      const userName =
-        document.getElementById(
-          formId + "_userName"
-        ).value;
+      if (!clientName || !userName) { alert("Please fill Client and User."); return; }
+      if (formId === "new" && !pod) { alert("Please select a POD."); return; }
 
-      const pod =
-        (
-          document.getElementById(
-            formId + "_pod"
-          ) || {}
-        ).value || "";
-
-      if (!clientName || !userName) {
-        alert("Please fill Client and User.");
-        return;
-      }
-
-      if (formId === "new" && !pod) {
-        alert("Please select a POD.");
-        return;
-      }
-
-      const btn =
-        formId === "existing"
-          ? existingSubmit
-          : newSubmit;
-
+      const btn = formId === "existing" ? existingSubmit : newSubmit;
       const label = btn.textContent;
-
       btn.disabled = true;
       btn.textContent = "Adding...";
-
       try {
         await POD_BOOKING.saveNewClient({
           clientName: clientName.trim(),
           userName: userName.trim(),
           pod: pod.trim(),
           sensitivity: "High",
-          reviewing: "INC",
+          reviewing: "INC"
         });
-
-        showToast(
-          formId === "existing"
-            ? "User added to " + clientName + "."
-            : "Client " + clientName + " added."
-        );
-
-        document.getElementById(
-          formId + "_userName"
-        ).value = "";
-
+        showToast(formId === "existing"
+          ? "User added to " + clientName + "."
+          : "Client " + clientName + " added.");
+        document.getElementById(formId + "_userName").value = "";
         if (formId === "new") {
-          document.getElementById(
-            "new_clientName"
-          ).value = "";
+          document.getElementById("new_clientName").value = "";
         }
       } catch (e) {
         alert("Failed to add row: " + e.message);
@@ -462,15 +305,8 @@
       }
     }
 
-    existingSubmit.addEventListener(
-      "click",
-      () => submit("existing")
-    );
-
-    newSubmit.addEventListener(
-      "click",
-      () => submit("new")
-    );
+    existingSubmit.addEventListener("click", () => submit("existing"));
+    newSubmit.addEventListener("click", () => submit("new"));
   </script>
 </body>
 </html>
