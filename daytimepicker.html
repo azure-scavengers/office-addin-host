@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -94,20 +92,7 @@
   </div>
 
   <script>
-    Office.onReady(async () => {
-      try {
-        const ctx = await POD_BOOKING.getWorkbookContext();
-        if (ctx.role === "master") {
-          document.querySelector(".shell").innerHTML =
-            '<div class="header">' +
-              '<h3 class="title">Wrong workbook</h3>' +
-              '<p class="subtitle">CSS / VA DL runs only in POD workbooks. Open ' +
-              'POD A / POD B / POD RoW to use this tool.</p>' +
-            '</div>';
-          return;
-        }
-      } catch (e) { /* fall through */ }
-
+    Office.onReady(() => {
       const hour = document.getElementById("hour");
       for (let i = 1; i <= 12; i++) {
         const opt = document.createElement("option");

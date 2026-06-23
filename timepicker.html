@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -73,20 +74,7 @@
   </div>
 
   <script>
-    Office.onReady(async () => {
-      try {
-        const ctx = await POD_BOOKING.getWorkbookContext();
-        if (ctx.role === "master") {
-          document.querySelector(".shell").innerHTML =
-            '<div class="header">' +
-              '<h3 class="title">Wrong workbook</h3>' +
-              '<p class="subtitle">In Time runs only in POD workbooks. Open ' +
-              'POD A / POD B / POD RoW to use this tool.</p>' +
-            '</div>';
-          return;
-        }
-      } catch (e) { /* fall through */ }
-
+    Office.onReady(() => {
       document.getElementById("addBtn").addEventListener("click", async () => {
         const value = document.getElementById("time").value;
         if (!value) return;
