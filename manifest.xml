@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  Office Add-in manifest - POD Booking + Client DB (combined).
+
+  Architecture (queue + scheduled reconcile):
+    * Users open POD A.xlsx / POD B.xlsx / POD RoW.xlsx only.
+    * S4U CLIENT DB.xlsx is silent (never opened by humans).
+    * POD workbook shows TWO ribbon tabs:
+        - POD Booking : Fill Row, In Time, CSS / VA DL
+        - Client DB   : New Client
+    * New Client writes the row to a hidden _NewClientQueue sheet INSIDE
+      the same POD workbook (no direct write to the master).
+    * A Power Automate flow runs OfficeScripts/ReconcileNewClients.ts on a
+      schedule against S4U CLIENT DB.xlsx, draining every POD's queue into
+      tbl_Database.
+    * Power Query on each POD picks up the new clients on next open or
+      Refresh All.
+
+  Hosted on GitHub Pages:
+    https://azure-scavengers.github.io/office-addin-host/
+
+  Deployment via Microsoft 365 admin center:
+    Settings -> Integrated apps -> Upload custom apps -> Office Add-in.
+    Assign to the POD user group (admin centre).
+-->
+
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xsi:type="TaskPaneApp">
+
+  <Id>5f3b9e5a-7b3d-4f1f-9a44-3c6b1d1e2b91</Id>
+  <Version>1.0.2.0</Version>
+  <ProviderName>S4U Migration</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+
+  <DisplayName DefaultValue="POD Booking" />
+  <Description DefaultValue="Booking and time entry plus New Client queue. Reads master data from the local Database sheet (Power Query mirror of S4U CLIENT DB) and queues new client requests for scheduled reconcile." />
+
+  <IconUrl DefaultValue="https://azure-scavengers.github.io/office-addin-host/assets/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://azure-scavengers.github.io/office-addin-host/assets/icon-80.png" />
+  <SupportUrl DefaultValue="https://azure-scavengers.github.io/office-addin-host/" />
+
+  <AppDomains>
+    <AppDomain>https://azure-scavengers.github.io</AppDomain>
+  </AppDomains>
+
+  <Hosts>
+    <Host Name="Workbook" />
+  </Hosts>
+
+  <Requirements>
+    <Sets DefaultMinVersion="1.1">
+      <Set Name="ExcelApi" MinVersion="1.1" />
+    </Sets>
+  </Requirements>
+
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://azure-scavengers.github.io/office-addin-host/form.html" />
+  </DefaultSettings>
+
+  <Permissions>ReadWriteDocument</Permissions>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+                    xsi:type="VersionOverridesV1_0">
+
+    <Requirements>
+      <bt:Sets DefaultMinVersion="1.1">
+        <bt:Set Name="AddinCommands" MinVersion="1.1" />
+      </bt:Sets>
+    </Requirements>
+
+    <Hosts>
+      <Host xsi:type="Workbook">
+        <DesktopFormFactor>
+
+          <GetStarted>
+            <Title resid="GetStarted.Title" />
+            <Description resid="GetStarted.Description" />
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl" />
+          </GetStarted>
+
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+
+            <!-- ============================================================
+                 TAB 1: POD Booking
+                 ============================================================ -->
+            <CustomTab id="POD.Tab">
+
+              <Group id="POD.Booking">
+                <Label resid="Booking.Label" />
+
+                <Icon>
+                  <bt:Image size="16" resid="Icon16" />
+                  <bt:Image size="32" resid="Icon32" />
+                  <bt:Image size="80" resid="Icon80" />
+                </Icon>
+
+                <Control xsi:type="Button" id="POD.FillRow">
+                  <Label resid="FillRow.Label" />
+                  <Supertip>
+                    <Title resid="FillRow.Label" />
+                    <Description resid="FillRow.Tooltip" />
+                  </Supertip>
+
+                  <Icon>
+                    <bt:Image size="16" resid="Icon16" />
+                    <bt:Image size="32" resid="Icon32" />
+                    <bt:Image size="80" resid="Icon80" />
+                  </Icon>
+
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>POD.FillRow.Pane</TaskpaneId>
+                    <SourceLocation resid="FillRow.Url" />
+                  </Action>
+                </Control>
+              </Group>
+
+              <Group id="POD.TimePicker">
+                <Label resid="TimePicker.Label" />
+
+                <Icon>
+                  <bt:Image size="16" resid="Icon16" />
+                  <bt:Image size="32" resid="Icon32" />
+                  <bt:Image size="80" resid="Icon80" />
+                </Icon>
+
+                <Control xsi:type="Button" id="POD.InTime">
+                  <Label resid="InTime.Label" />
+                  <Supertip>
+                    <Title resid="InTime.Label" />
+                    <Description resid="InTime.Tooltip" />
+                  </Supertip>
+
+                  <Icon>
+                    <bt:Image size="16" resid="Icon16" />
+                    <bt:Image size="32" resid="Icon32" />
+                    <bt:Image size="80" resid="Icon80" />
+                  </Icon>
+
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>POD.InTime.Pane</TaskpaneId>
+                    <SourceLocation resid="InTime.Url" />
+                  </Action>
+                </Control>
+
+                <Control xsi:type="Button" id="POD.CssVaDl">
+                  <Label resid="CssVaDl.Label" />
+                  <Supertip>
+                    <Title resid="CssVaDl.Label" />
+                    <Description resid="CssVaDl.Tooltip" />
+                  </Supertip>
+
+                  <Icon>
+                    <bt:Image size="16" resid="Icon16" />
+                    <bt:Image size="32" resid="Icon32" />
+                    <bt:Image size="80" resid="Icon80" />
+                  </Icon>
+
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>POD.CssVaDl.Pane</TaskpaneId>
+                    <SourceLocation resid="CssVaDl.Url" />
+                  </Action>
+                </Control>
+
+              </Group>
+
+              <Label resid="PODTab.Label" />
+            </CustomTab>
+
+            <!-- ============================================================
+                 TAB 2: Client DB
+                 ============================================================ -->
+            <CustomTab id="ClientDB.Tab">
+
+              <Group id="ClientDB.Clients">
+                <Label resid="Clients.Label" />
+
+                <Icon>
+                  <bt:Image size="16" resid="Icon16" />
+                  <bt:Image size="32" resid="Icon32" />
+                  <bt:Image size="80" resid="Icon80" />
+                </Icon>
+
+                <Control xsi:type="Button" id="ClientDB.NewClient">
+                  <Label resid="NewClient.Label" />
+                  <Supertip>
+                    <Title resid="NewClient.Label" />
+                    <Description resid="NewClient.Tooltip" />
+                  </Supertip>
+
+                  <Icon>
+                    <bt:Image size="16" resid="Icon16" />
+                    <bt:Image size="32" resid="Icon32" />
+                    <bt:Image size="80" resid="Icon80" />
+                  </Icon>
+
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>ClientDB.NewClient.Pane</TaskpaneId>
+                    <SourceLocation resid="NewClient.Url" />
+                  </Action>
+                </Control>
+
+              </Group>
+
+              <Label resid="ClientDBTab.Label" />
+            </CustomTab>
+
+          </ExtensionPoint>
+
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <Resources>
+
+      <bt:Images>
+        <bt:Image id="Icon16" DefaultValue="https://azure-scavengers.github.io/office-addin-host/assets/icon-16.png" />
+        <bt:Image id="Icon32" DefaultValue="https://azure-scavengers.github.io/office-addin-host/assets/icon-32.png" />
+        <bt:Image id="Icon80" DefaultValue="https://azure-scavengers.github.io/office-addin-host/assets/icon-80.png" />
+      </bt:Images>
+
+      <bt:Urls>
+        <bt:Url id="FillRow.Url" DefaultValue="https://azure-scavengers.github.io/office-addin-host/form.html" />
+        <bt:Url id="InTime.Url" DefaultValue="https://azure-scavengers.github.io/office-addin-host/timepicker.html" />
+        <bt:Url id="CssVaDl.Url" DefaultValue="https://azure-scavengers.github.io/office-addin-host/daytimepicker.html" />
+        <bt:Url id="NewClient.Url" DefaultValue="https://azure-scavengers.github.io/office-addin-host/newClient.html" />
+        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://azure-scavengers.github.io/office-addin-host/" />
+      </bt:Urls>
+
+      <bt:ShortStrings>
+        <bt:String id="PODTab.Label" DefaultValue="POD Booking" />
+        <bt:String id="ClientDBTab.Label" DefaultValue="Client DB" />
+        <bt:String id="Booking.Label" DefaultValue="Booking" />
+        <bt:String id="TimePicker.Label" DefaultValue="Time Picker" />
+        <bt:String id="Clients.Label" DefaultValue="Clients" />
+        <bt:String id="FillRow.Label" DefaultValue="Fill Row" />
+        <bt:String id="InTime.Label" DefaultValue="In Time" />
+        <bt:String id="CssVaDl.Label" DefaultValue="CSS/VA DL" />
+        <bt:String id="NewClient.Label" DefaultValue="New Client" />
+        <bt:String id="GetStarted.Title" DefaultValue="POD Booking is ready." />
+      </bt:ShortStrings>
+
+      <bt:LongStrings>
+        <bt:String id="FillRow.Tooltip"
+                   DefaultValue="Open the booking entry task pane to append one validated row to the active POD sheet." />
+        <bt:String id="InTime.Tooltip"
+                   DefaultValue="Append HH:MM history to the active cell." />
+        <bt:String id="CssVaDl.Tooltip"
+                   DefaultValue="Write 'Mon, 09:00 AM' style values to the active cell." />
+        <bt:String id="NewClient.Tooltip"
+                   DefaultValue="Queue a new client or new user-client mapping for the silent master S4U CLIENT DB.xlsx. A scheduled reconcile drains the queue into tbl_Database." />
+        <bt:String id="GetStarted.Description"
+                   DefaultValue="Use the POD Booking tab for bookings and timing. Use the Client DB tab to queue new clients for reconcile." />
+      </bt:LongStrings>
+
+    </Resources>
+
+  </VersionOverrides>
+</OfficeApp>
